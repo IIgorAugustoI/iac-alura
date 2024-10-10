@@ -16,7 +16,8 @@ crash.*.log
 # to change depending on the environment.
 *.tfvars
 *.tfvars.json
-
+.terraform.lock.hcl
+.terraform/
 # Ignore override files as they are usually used to override resources locally and so
 # are not checked in
 override.tf
@@ -28,3 +29,6 @@ override.tf.json
 terraform.rc
 
 *.pem
+*.pub
+IaC-Prod 
+IaC-DEV
