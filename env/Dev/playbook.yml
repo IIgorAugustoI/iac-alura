@@ -1,0 +1,32 @@
+---
+- hosts: terraform-ansible
+  tasks:
+    - name: Install python
+      ansible.builtin.apt:
+        pkg:
+          - python3
+          - virtualenv
+        update_cache: yes
+      become: true
+    - name: Instalando dependencias com o pip (Django e Django Rest)
+      ansible.builtin.pip:
+        virtualenv: /home/ubuntu/tcc/venv
+        name:
+          - django
+          - djangorestframework
+    - name: Verificando se o projeto já existe
+      stat:
+        path: /home/ubuntu/tcc/setup/settings.py
+      register: projeto
+    - name: Iniciando o projeto
+      shell: ". /home/ubuntu/tcc/venv/bin/activate; django-admin startproject setup /home/ubuntu/tcc/"
+      when: not projeto.stat.exists
+    - name: Alterando o hosts do settings.py
+      ansible.builtin.lineinfile:
+        path: /home/ubuntu/tcc/setup/settings.py
+        regexp: "ALLOWED_HOSTS ="
+        line: 'ALLOWED_HOSTS = ["*"]'
+        # Se não achar, não vai fazer nada
+        backrefs: yes
+    - name: Subindo a aplicação
+      shell: ". /home/ubuntu/tcc/venv/bin/activate; nohup python /home/ubuntu/tcc/manage.py runserver 0.0.0.0:8000 &"
