@@ -22,7 +22,8 @@ resource "aws_launch_template" "maquina" {
     Name = var.aplication_name
   }
   security_group_names = [var.security_group]
-  user_data            = filebase64("ansible.sh")
+  # Utilizando operador ternario.
+  user_data = var.producao ? ("ansible.sh") : ""
 }
 
 resource "aws_key_pair" "chaveSSH" {
@@ -30,19 +31,17 @@ resource "aws_key_pair" "chaveSSH" {
   public_key = file("${var.chave}.pub")
 }
 
-# Pegar o IP público sem precisar acessar o painel da AWS
-# OBS: É possível utilizar essa mesma lógica para pegar outras informações, como o DNS da máquina.
 
 resource "aws_autoscaling_group" "grupo" {
   availability_zones = ["${var.region_aws}a", "${var.region_aws}b"]
   name               = var.nomeGrupo
   max_size           = var.maximo
   min_size           = var.minimo
+  target_group_arns  = var.producao ? [aws_lb_target_group.loadBalancer_alvo[0].arn] : []
   launch_template {
     id      = aws_launch_template.maquina.id
     version = "$Latest"
   }
-  target_group_arns = [aws_lb_target_group.loadBalancer_alvo.arn]
 }
 
 resource "aws_default_subnet" "subnet_1" {
@@ -57,6 +56,8 @@ resource "aws_lb" "loadBalancer" {
   internal        = false
   subnets         = [aws_default_subnet.subnet_1.id, aws_default_subnet.subnet_2.id]
   security_groups = [aws_security_group.acesso_geral.id]
+  # Count é utilizado para definir quantos recursos o terraform irá criar.
+  count = var.producao ? 1 : 0
 }
 
 resource "aws_default_vpc" "default" {
@@ -68,16 +69,20 @@ resource "aws_lb_target_group" "loadBalancer_alvo" {
   port     = "8000"
   protocol = "HTTP"
   vpc_id   = aws_default_vpc.default.id
+  # Count é utilizado para definir quantos recursos o terraform irá criar.
+  count = var.producao ? 1 : 0
 }
 
 resource "aws_lb_listener" "entrada" {
-  load_balancer_arn = aws_lb.loadBalancer.arn
+  load_balancer_arn = aws_lb.loadBalancer[0].arn
   port              = "8000"
   protocol          = "HTTP"
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.loadBalancer_alvo.arn
+    target_group_arn = aws_lb_target_group.loadBalancer_alvo[0].arn
   }
+  # Count é utilizado para definir quantos recursos o terraform irá criar.
+  count = var.producao ? 1 : 0
 }
 
 resource "aws_autoscaling_policy" "escalaDeProducao" {
@@ -91,4 +96,6 @@ resource "aws_autoscaling_policy" "escalaDeProducao" {
     }
     target_value = 50.0
   }
+  # Count é utilizado para definir quantos recursos o terraform irá criar.
+  count = var.producao ? 1 : 0
 }
